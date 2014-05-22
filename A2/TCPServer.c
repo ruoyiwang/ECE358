@@ -12,15 +12,20 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <string.h>
+#include <iostream>
+
+int initStudents () {
+
+}
 
 int main(int argc, char *argv[])
 {
     struct ifaddrs *myaddrs, *ifa;
     void *in_addr;
     char buf[256];
-    int new_fd, s, portnum = 0;
+    int new_fd, old_fd, portnum = 0;
 
-    struct sockaddr_in a, their_addr;
+    struct sockaddr_in my_addr, their_addr;
     socklen_t addrlen = sizeof(struct sockaddr_in);
     
     if(getifaddrs(&myaddrs) != 0)
@@ -35,7 +40,7 @@ int main(int argc, char *argv[])
             continue;
         if (!(ifa->ifa_flags & IFF_UP))
             continue;
-        if (ifa->ifa_addr->sa_family != AF_INET || strcmp(ifa->ifa_name, "eth0") != 0) {
+        if (ifa->ifa_addr->sa_family != AF_INET || strcmp(ifa->ifa_name, "lo") == 0) {
             continue;
         }
 
@@ -52,42 +57,46 @@ int main(int argc, char *argv[])
 
     freeifaddrs(myaddrs);
 
-    if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((old_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         exit(0);
     }
 
-    a.sin_family = AF_INET;
-    a.sin_port = htons(portnum);
-    a.sin_addr.s_addr = INADDR_ANY;
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_port = htons(portnum);
+    my_addr.sin_addr.s_addr = INADDR_ANY;
 
-    while (bind (s, (const struct sockaddr *)(&a), sizeof(struct sockaddr_in)) < 0) {
-        a.sin_port = htons(++portnum);
+    while (bind (old_fd, (const struct sockaddr *)(&my_addr), sizeof(struct sockaddr_in)) < 0) {
+        my_addr.sin_port = htons(++portnum);
     }
-    memset (&a, 0, sizeof(struct sockaddr_in));
+    memset (&my_addr, 0, sizeof(struct sockaddr_in));
 
-    // In case you didnt specify the port number, we will get it here
+    // get the portnumber here
 
-    if (getsockname(s, (struct sockaddr *) (&a), &addrlen) < 0) {
+    if (getsockname(old_fd, (struct sockaddr *) (&my_addr), &addrlen) < 0) {
         perror ("getsockname");
         exit (0);
     }
 
-    printf ("Connecting to port %hu\n", ntohs(a.sin_port));
-    //printf("%d\n", portnum);
+    printf ("%hu\n", ntohs(my_addr.sin_port));
+    
+    while (1 ){
+        listen(old_fd, 10); 
 
-    listen(s, 10); 
+        memset(buf, 0, 256);
+        memset(&my_addr, 0, sizeof(struct sockaddr_in));
 
+        new_fd = accept(old_fd, (struct sockaddr *)&their_addr, &addrlen);
 
-    memset(buf, 0, 256);
-    memset(&a, 0, sizeof(struct sockaddr_in));
-
-    new_fd = accept(s, (struct sockaddr *)&their_addr, &addrlen);
-
-    if (recvfrom(new_fd, buf, 256, 0, (struct sockaddr*) (&a), &addrlen) < 0){
-        perror("recvfrom");
+        memset(buf, 0, 256);
+        memset(&my_addr, 0, sizeof(struct sockaddr_in));
+        if (recvfrom(new_fd, buf, 256, 0, (struct sockaddr*) (&my_addr), &addrlen) < 0){
+            perror("recvfrom");
+            break;
+        }
+        send(new_fd, "test msg", strlen("test msg") + 1, 0);
+        printf("Server received: %s\n", buf);
+    
     }
-
-    printf("Server, received: %s\n", buf);
     return 0;
 }

@@ -39,29 +39,53 @@ int main (int argc, char *argv[]) {
 
     // make the server sock addr in
     struct sockaddr_in serverSockAddr;
-    memset(&serverSockAddr, 0, sizeof(serverSockAddr)); 
+    memset(&serverSockAddr, 0, sizeof(serverSockAddr));
+
+    // TODO: lookup domain name and convert is to ip
+    struct addrinfo *res, hints;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo (serverNameOrIp, NULL, (&hints), &res) != 0) {
+        cerr<< "so getaddrinfo failed"<<endl;
+        exit(0);
+    }
+
+
+    struct addrinfo *cai;
+    bool flag = false;
+    for (cai = res; cai != NULL; cai = cai->ai_next) {
+        if (cai->ai_family == AF_INET) {
+            memcpy (&serverSockAddr, cai->ai_addr, sizeof(struct sockaddr_in));
+            cout << "Found AF_INET" << endl;
+            if (flag) {
+                break;
+            }
+            else {
+                flag = true;
+            }
+        }
+    }
     serverSockAddr.sin_family = AF_INET;
     serverSockAddr.sin_port = htons(atoi(serverPort));
 
-
-    // TODO: lookup domain name and convert is to ip
-    // struct hostent* host;
-    // host = gethostbyname(serverNameOrIp);
-    // cout<<host->h_addr<<endl;
-
-    // convert ip from txt to bin
-    if (inet_pton(AF_INET, serverNameOrIp, &serverSockAddr) <= 0) {
-        cerr << "inet_pton fails" <<endl;
-        exit(0);
+    char buf[128] = {0};
+    if (!inet_ntop(serverSockAddr.sin_family, (void *)&(serverSockAddr.sin_addr), buf, sizeof(buf))) {
+        // printf("%s: inet_ntop failed!\n", ifa->ifa_name);
     }
+    else {
+        printf("%s ", buf);
+    }
+
 
     // try to connect to that shit
-    if (connect(clientSocketFileDescriptor, (struct sockaddr *)&serverSockAddr, sizeof(serverSockAddr)) <  0 ) {
-        cerr << "connect fails" <<endl;
+    if (connect(clientSocketFileDescriptor, (const struct sockaddr *)&serverSockAddr, sizeof(struct sockaddr_in)) <  0 ) {
+        perror("connection fails");
         exit(0);
     }
 
-    int whateverThisNumIs = send(clientSocketFileDescriptor, "test msg", sizeof("test msg"), 0);
+    int whateverThisNumIs = sendto(clientSocketFileDescriptor, "test msg", strlen("test msg") + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(struct sockaddr_in));
     if (whateverThisNumIs < 0) {
         cerr << "err writing to socket";
     }
@@ -80,3 +104,4 @@ int main (int argc, char *argv[]) {
 
 
 // reference: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/netinet/in.h.html
+

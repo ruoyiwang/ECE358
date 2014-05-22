@@ -41,60 +41,41 @@ int main (int argc, char *argv[]) {
     struct sockaddr_in serverSockAddr;
     memset(&serverSockAddr, 0, sizeof(serverSockAddr));
 
-    //  lookup domain name and convert is to ip
-    // this code's credit goes to the 358 TA
+    // lookup domain name and convert is to ip
+    // this code's idea's credit goes to the 358 TA
     struct addrinfo *res, hints;
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if (getaddrinfo (serverNameOrIp, NULL, (&hints), &res) != 0) {
+    if (getaddrinfo(serverNameOrIp, NULL, (&hints), &res) != 0) {
         cerr<< "so getaddrinfo failed"<<endl;
         exit(0);
     }
 
-    struct addrinfo *cai;
-    for (cai = res; cai != NULL; cai = cai->ai_next) {
-        if (cai->ai_family == AF_INET) {
-            memcpy (&serverSockAddr, cai->ai_addr, sizeof(struct sockaddr_in));
+    struct addrinfo *tempAddrInfo;
+    for (tempAddrInfo = res; tempAddrInfo != NULL; tempAddrInfo = tempAddrInfo->ai_next) {
+        if (tempAddrInfo->ai_family == AF_INET) {
+            memcpy (&serverSockAddr, tempAddrInfo->ai_addr, sizeof(struct sockaddr_in));
             cout << "Found AF_INET" << endl;
         }
     }
     serverSockAddr.sin_family = AF_INET;
     serverSockAddr.sin_port = htons(atoi(serverPort));
 
-    char buf[128] = {0};
-    if (!inet_ntop(serverSockAddr.sin_family, (void *)&(serverSockAddr.sin_addr), buf, sizeof(buf))) {
-        // printf("%s: inet_ntop failed!\n", ifa->ifa_name);
-    }
-    else {
-        printf("%s ", buf);
-    }
+    // char buf[128] = {0};
+    // if (!inet_ntop(serverSockAddr.sin_family, (void *)&(serverSockAddr.sin_addr), buf, sizeof(buf))) {
+    //     // printf("%s: inet_ntop failed!\n", ifa->ifa_name);
+    // }
+    // else {
+    //     printf("%s ", buf);
+    // }
 
     // try to connect to that shit
     if (connect(clientSocketFileDescriptor, (const struct sockaddr *)&serverSockAddr, sizeof(serverSockAddr)) <  0 ) {
         perror("connection fails");
         exit(0);
     }
-
-    int whateverThisNumIs = sendto(clientSocketFileDescriptor, "test msg", strlen("test msg") + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(serverSockAddr));
-    if (whateverThisNumIs < 0) {
-        perror("err writing to socket");
-    }
-    cout<<"so apparently this worked, and I sent out 'test msg', maybe?"<<endl;
-
-    char receiveBuffer[256] = {0};
-
-    int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuffer, 256, 0, NULL, NULL);
-    if (responseSize < 0) {
-        perror("failed receiving msg from server or some shit");
-        exit(0);
-    }
-
-    cout<<receiveBuffer<<endl;
-
-
-    // the parse / other shits starts here
 
     string queryStr;
     while (!getline(cin, queryStr).eof()) {
@@ -104,7 +85,6 @@ int main (int argc, char *argv[]) {
         if (receiveSize < 0) {
             perror("err writing to socket");
         }
-        cout<<"so apparently this worked, and I sent out 'test msg', maybe?"<<endl;
 
         char receiveBuff[256] = {0};
         int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuff, 256, 0, NULL, NULL);
@@ -112,10 +92,26 @@ int main (int argc, char *argv[]) {
             perror("failed receiving msg from server or some shit");
             exit(0);
         }
-        cout<<receiveBuffer<<endl;
-    }
-    // TODO: send STOP_SESSION
+        cout<<receiveBuff<<endl;
 
+        if (queryStr == "STOP") {
+            return 0;
+        }
+    }
+
+    // send STOP_SESSION
+    int receiveSize = sendto(clientSocketFileDescriptor, "STOP_SESSION", strlen("STOP_SESSION") + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(serverSockAddr));
+    if (receiveSize < 0) {
+        perror("err writing to socket");
+    }
+
+    char receiveBuff[256] = {0};
+    int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuff, 256, 0, NULL, NULL);
+    if (responseSize < 0) {
+        perror("failed receiving msg from server or some shit");
+        exit(0);
+    }
+    cout<<receiveBuff<<endl;
 
     return 0;
 }

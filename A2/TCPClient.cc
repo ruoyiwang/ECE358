@@ -80,7 +80,7 @@ int main (int argc, char *argv[]) {
 
 
     // try to connect to that shit
-    if (connect(clientSocketFileDescriptor, (const struct sockaddr *)&serverSockAddr, sizeof(struct sockaddr_in)) <  0 ) {
+    if (connect(clientSocketFileDescriptor, (const struct sockaddr *)&serverSockAddr.sin_addr, sizeof(struct sockaddr_in)) <  0 ) {
         perror("connection fails");
         exit(0);
     }

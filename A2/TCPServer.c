@@ -13,9 +13,31 @@
 #include <net/if.h>
 #include <string.h>
 #include <iostream>
+#include <sstream>
+#include <map>
+#include <vector>
+
+using namespace std;
+
+map<int, map<int, string> > groups;
 
 int initStudents () {
-
+    string s, name, temp;
+    int stu_num, group_num;
+    while (!getline( cin, s ).eof() && !s.empty())
+    {
+        stringstream ss( s );
+        if (ss >> temp && temp == "Group") {
+            ss >> group_num;
+        }
+        else {
+            getline ( ss, name );
+            stu_num = atoi(temp.c_str());
+            name.erase(name.find_last_not_of(" \n\r\t")+1);
+            cout << name << endl;
+            groups[group_num][stu_num] = name;
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -80,7 +102,9 @@ int main(int argc, char *argv[])
 
     printf ("%hu\n", ntohs(my_addr.sin_port));
     
-    while (1 ){
+    initStudents();
+
+    while ( 1 ){
         listen(old_fd, 10); 
 
         memset(buf, 0, 256);
@@ -88,15 +112,39 @@ int main(int argc, char *argv[])
 
         new_fd = accept(old_fd, (struct sockaddr *)&their_addr, &addrlen);
 
-        memset(buf, 0, 256);
-        memset(&my_addr, 0, sizeof(struct sockaddr_in));
-        if (recvfrom(new_fd, buf, 256, 0, (struct sockaddr*) (&my_addr), &addrlen) < 0){
-            perror("recvfrom");
-            break;
+        while ( 1 ) {
+            memset(buf, 0, 256);
+            memset(&my_addr, 0, sizeof(struct sockaddr_in));
+
+            if (recvfrom(new_fd, buf, 256, 0, (struct sockaddr*) (&my_addr), &addrlen) < 0){
+                perror("recvfrom");
+                break;
+            }
+            // printf("Server received: %s\n", buf);
+
+            stringstream ss(buf);
+            string command;
+            int group_id, stu_id;
+
+            ss >> command;
+            if (command == "STOP_SESSION") {
+                // printf("Session stopped");
+                close(new_fd);
+                break;
+            }
+            else if ( command == "STOP" ) {
+                // printf("Program stopped");
+                close(new_fd);
+                close(old_fd);
+                return 0;
+            }
+            else if ( command == "GET" ) {
+                ss >> group_id;
+                ss >> stu_id;
+              //  printf("get %d %d: %s", group_id, stu_id, groups[group_id][stu_id].c_str());
+                send(new_fd, groups[group_id][stu_id].c_str(), strlen(groups[group_id][stu_id].c_str()) + 1, 0);
+            }
         }
-        send(new_fd, "test msg", strlen("test msg") + 1, 0);
-        printf("Server received: %s\n", buf);
-    
     }
     return 0;
 }

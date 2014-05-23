@@ -19,6 +19,7 @@
 
 using namespace std;
 
+// tokenizes a string to a vector of string with space as delim
 vector<string> tokenize(string input) {
     stringstream ss;
     ss << input;
@@ -34,6 +35,7 @@ vector<string> tokenize(string input) {
     return vs;
 }
 
+// check if a str is a number
 bool IsNumber(string s) {
     locale l;
     for (int i = 0; i < s.length(); i++) {
@@ -44,6 +46,7 @@ bool IsNumber(string s) {
     return true;
 }
 
+// check if inputted str by user is valid
 bool IsQueryStringValid(string queryStr) {
      vector<string> tokenizedQuery = tokenize(queryStr);
     if (tokenizedQuery.size() == 1 && tokenizedQuery.at(0) == "STOP") {
@@ -94,34 +97,28 @@ int main (int argc, char *argv[]) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
+    // get the addr info from eitehr the name or ip based on user input
     if (getaddrinfo(serverNameOrIp, NULL, (&hints), &res) != 0) {
         cerr<< "so getaddrinfo failed"<<endl;
         exit(0);
     }
 
     struct addrinfo *tempAddrInfo;
+
+    // look for the addr info we want from the result of the addr info
+    // copy it to our addr
     for (tempAddrInfo = res; tempAddrInfo != NULL; tempAddrInfo = tempAddrInfo->ai_next) {
         if (tempAddrInfo->ai_family == AF_INET) {
             memcpy (&serverSockAddr, tempAddrInfo->ai_addr, sizeof(struct sockaddr_in));
         }
     }
+    
+    // chage the family to AUY_INET
     serverSockAddr.sin_family = AF_INET;
+    // write the server port in
     serverSockAddr.sin_port = htons(atoi(serverPort));
 
-    // char buf[128] = {0};
-    // if (!inet_ntop(serverSockAddr.sin_family, (void *)&(serverSockAddr.sin_addr), buf, sizeof(buf))) {
-    //     // printf("%s: inet_ntop failed!\n", ifa->ifa_name);
-    // }
-    // else {
-    //     printf("%s ", buf);
-    // }
-
     // don't need to run connect for udp
-    // // try to connect to that shit
-    // if (connect(clientSocketFileDescriptor, (const struct sockaddr *)&serverSockAddr, sizeof(serverSockAddr)) <  0 ) {
-    //     perror("connection fails");
-    //     exit(0);
-    // }
 
     string queryStr;
     while (!getline(cin, queryStr).eof()) {
@@ -132,7 +129,8 @@ int main (int argc, char *argv[]) {
         }
         vector<string> tokenizedQuery = tokenize(queryStr);
 
-        // parsing worked and if it's not STOP, get append GET infront of the command send to svr
+        // parsing worked 
+        // if it's not STOP, get append GET in front of the command send to svr
         if (queryStr != "STOP") {
             // remade the queryStr so that it only has 1 space
             queryStr = tokenizedQuery.at(0) + " " + tokenizedQuery.at(1);
@@ -152,13 +150,16 @@ int main (int argc, char *argv[]) {
             return 0;
         }
 
+        // make the receive buffer and wait for the server to respond
         char receiveBuff[256] = {0};
         int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuff, 256, 0, NULL, NULL);
         if (responseSize < 0) {
-            perror("failed receiving msg from server or some shit");
+            perror("failed receiving msg from server");
             exit(0);
         }
+
         string receivedStr = string(receiveBuff);
+        // make the possible error string returned by the sever
         string possibleError = "ERROR_" + queryStr;
         if (receivedStr == possibleError) {
             cerr << "error: " << queryStr << endl;
@@ -168,15 +169,16 @@ int main (int argc, char *argv[]) {
         }
     }
 
+    // the code breaks out of the loop is EOF is received
     // send STOP_SESSION
     int receiveSize = sendto(clientSocketFileDescriptor, "STOP_SESSION", strlen("STOP_SESSION") + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(serverSockAddr));
     if (receiveSize < 0) {
         perror("err writing to socket");
     }
+
     // don't care about the receive and return
     return 0;
 }
 
 
 // reference: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/netinet/in.h.html
-

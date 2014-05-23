@@ -1,4 +1,4 @@
-TCP: TCPClient TCPServer
+tcp: TCPClient TCPServer
 
 TCPClient: TCPClient.cc
 	g++ -o client TCPClient.cc
@@ -6,7 +6,7 @@ TCPClient: TCPClient.cc
 TCPServer: TCPServer.cc
 	g++ -o server TCPServer.cc
 
-UDP: UDPClient UDPServer
+udp: UDPClient UDPServer
 
 UDPClient: UDPClient.cc
 	g++ -o client UDPClient.cc

@@ -103,7 +103,6 @@ int main (int argc, char *argv[]) {
     for (tempAddrInfo = res; tempAddrInfo != NULL; tempAddrInfo = tempAddrInfo->ai_next) {
         if (tempAddrInfo->ai_family == AF_INET) {
             memcpy (&serverSockAddr, tempAddrInfo->ai_addr, sizeof(struct sockaddr_in));
-            cout << "Found AF_INET" << endl;
         }
     }
     serverSockAddr.sin_family = AF_INET;

@@ -6,13 +6,59 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <netdb.h>
 #include <errno.h>
 #include <ifaddrs.h>
 #include <cstdlib>
 #include <cstddef>
+#include <cstring>
+#include <sstream>
+#include <vector>
+#include <locale>
 
 using namespace std;
+
+vector<string> tokenize(string input) {
+    stringstream ss;
+    ss << input;
+    string temp;
+
+    vector<string> vs;
+    while (getline(ss, temp, ' ')) {
+        if (temp != "") {
+            vs.push_back(temp);
+        }
+    }
+
+    return vs;
+}
+
+bool IsNumber(string s) {
+    locale l;
+    for (int i = 0; i < s.length(); i++) {
+        if (!isdigit(s[i], l)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool IsQueryStringValid(string queryStr) {
+     vector<string> tokenizedQuery = tokenize(queryStr);
+    if (tokenizedQuery.size() == 1 && tokenizedQuery.at(0) == "STOP") {
+        return true;
+    }
+    else if (tokenizedQuery.size() == 2) {
+        if (IsNumber(tokenizedQuery.at(0)) && IsNumber(tokenizedQuery.at(1))) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    return false;
+}
 
 int main (int argc, char *argv[]) {
     if (argc < 3) {
@@ -80,6 +126,16 @@ int main (int argc, char *argv[]) {
 
     string queryStr;
     while (!getline(cin, queryStr).eof()) {
+        // have to parse queryStr
+        if (!IsQueryStringValid(queryStr)) {
+            cerr<<"error: invalid input"<<endl;
+            continue;
+        }
+
+        // parsing worked and if it's not STOP, get append GET infront of the command send to svr
+        if (queryStr != "STOP") {
+            queryStr = "GET " + queryStr;
+        }
         const char * sendQuery = queryStr.c_str();
 
         int receiveSize = sendto(clientSocketFileDescriptor, sendQuery, strlen(sendQuery) + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(serverSockAddr));
@@ -93,9 +149,10 @@ int main (int argc, char *argv[]) {
             perror("failed receiving msg from server or some shit");
             exit(0);
         }
-        cout<<receiveBuff<<endl;
+        cout << receiveBuff << " | Response Size: " << responseSize << endl;
 
         if (queryStr == "STOP") {
+            close(clientSocketFileDescriptor);
             return 0;
         }
     }

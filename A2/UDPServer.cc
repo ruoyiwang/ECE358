@@ -21,6 +21,16 @@ using namespace std;
 
 map<int, map<int, string> > groups;
 
+bool IsNumber(string s) {
+    locale l;
+    for (int i = 0; i < s.length(); i++) {
+        if (!isdigit(s[i], l)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int initStudents () {
     string s, name, temp;
     int stu_num, group_num;
@@ -30,12 +40,14 @@ int initStudents () {
         if (ss >> temp && temp == "Group") {
             ss >> group_num;
         }
-        else {
+        else if (IsNumber(temp)) {
             getline ( ss, name );
             stu_num = atoi(temp.c_str());
-            name.erase(name.find_last_not_of(" \n\r\t")+1);
-            cout << name << endl;
+            name.erase(0, name.find_first_not_of(" \n\r\t"));
             groups[group_num][stu_num] = name;
+        }
+        else {
+            continue;
         }
     }
 }
@@ -79,7 +91,7 @@ int main(int argc, char *argv[])
 
     freeifaddrs(myaddrs);
 
-    if ((old_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((old_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket");
         exit(0);
     }
@@ -104,45 +116,40 @@ int main(int argc, char *argv[])
     
     initStudents();
 
-    while ( 1 ){
-        listen(old_fd, 10); 
-
+    while ( 1 ) {
         memset(buf, 0, 256);
         memset(&my_addr, 0, sizeof(struct sockaddr_in));
 
-        new_fd = accept(old_fd, (struct sockaddr *)&their_addr, &addrlen);
+        if (recvfrom(old_fd, buf, 256, 0, (struct sockaddr*) (&my_addr), &addrlen) < 0){
+            perror("recvfrom");
+            break;
+        }
+      //  printf("Server received: %s\n", buf);
 
-        while ( 1 ) {
-            memset(buf, 0, 256);
-            memset(&my_addr, 0, sizeof(struct sockaddr_in));
+        stringstream ss(buf);
+        string command;
+        int group_id, stu_id;
 
-            if (recvfrom(new_fd, buf, 256, 0, (struct sockaddr*) (&my_addr), &addrlen) < 0){
-                perror("recvfrom");
-                break;
+        ss >> command;
+        if (command == "STOP_SESSION") {
+            continue;
+        }
+        else if ( command == "STOP" ) {
+            // printf("Program stopped");
+            close(new_fd);
+            close(old_fd);
+            return 0;
+        }
+        else if ( command == "GET" ) {
+            ss >> group_id;
+            ss >> stu_id;
+          //  printf("get %d %d: %s", group_id, stu_id, groups[group_id][stu_id].c_str());
+            if (groups.count(group_id) && groups[group_id].count(stu_id)) {
+                sendto(old_fd, groups[group_id][stu_id].c_str(), strlen(groups[group_id][stu_id].c_str()) + 1, 0, (struct sockaddr*) (&my_addr), addrlen);
             }
-            // printf("Server received: %s\n", buf);
-
-            stringstream ss(buf);
-            string command;
-            int group_id, stu_id;
-
-            ss >> command;
-            if (command == "STOP_SESSION") {
-                // printf("Session stopped");
-                close(new_fd);
-                break;
-            }
-            else if ( command == "STOP" ) {
-                // printf("Program stopped");
-                close(new_fd);
-                close(old_fd);
-                return 0;
-            }
-            else if ( command == "GET" ) {
-                ss >> group_id;
-                ss >> stu_id;
-              //  printf("get %d %d: %s", group_id, stu_id, groups[group_id][stu_id].c_str());
-                send(new_fd, groups[group_id][stu_id].c_str(), strlen(groups[group_id][stu_id].c_str()) + 1, 0);
+            else {
+                sprintf( buf, "ERROR %d %d", group_id, stu_id);
+                sendto(old_fd, buf, strlen(buf) + 1, 0, (struct sockaddr*) (&my_addr), addrlen);
             }
         }
     }

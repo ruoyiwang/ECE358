@@ -131,13 +131,17 @@ int main (int argc, char *argv[]) {
             cerr<<"error: invalid input"<<endl;
             continue;
         }
+        vector<string> tokenizedQuery = tokenize(queryStr);
 
         // parsing worked and if it's not STOP, get append GET infront of the command send to svr
         if (queryStr != "STOP") {
+            // remade the queryStr so that it only has 1 space
+            queryStr = tokenizedQuery.at(0) + " " + tokenizedQuery.at(1);
             queryStr = "GET " + queryStr;
         }
         const char * sendQuery = queryStr.c_str();
 
+        // send the thingy to the server
         int receiveSize = sendto(clientSocketFileDescriptor, sendQuery, strlen(sendQuery) + 1, 0, (const struct sockaddr *)(&serverSockAddr), sizeof(serverSockAddr));
         if (receiveSize < 0) {
             perror("err writing to socket");
@@ -155,7 +159,12 @@ int main (int argc, char *argv[]) {
             perror("failed receiving msg from server or some shit");
             exit(0);
         }
-        cout << receiveBuff << " | Response Size: " << responseSize << endl;
+        string receivedStr = string(receiveBuff);
+        string possibleError = "ERROR_" + queryStr;
+        if (receivedStr == possibleError) {
+            cerr << "error: " << queryStr << endl;
+        }
+        cout << receivedStr << endl; //" | Response Size: " << responseSize << endl;
     }
 
     // send STOP_SESSION

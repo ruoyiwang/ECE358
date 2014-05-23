@@ -3,15 +3,15 @@ TCP: TCPClient TCPServer
 TCPClient: TCPClient.cc
 	g++ -o client TCPClient.cc
 
-TCPServer: TCPServer.c
-	g++ -o server TCPServer.c
+TCPServer: TCPServer.cc
+	g++ -o server TCPServer.cc
 
 UDP: UDPClient UDPServer
 
 UDPClient: UDPClient.cc
 	g++ -o client UDPClient.cc
 
-UDPServer: UDPServer.c
+UDPServer: UDPServer.cc
 	g++ -o server UDPServer.cc
 
 clean:

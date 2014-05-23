@@ -164,7 +164,9 @@ int main (int argc, char *argv[]) {
         if (receivedStr == possibleError) {
             cerr << "error: " << queryStr << endl;
         }
-        cout << receivedStr << endl; //" | Response Size: " << responseSize << endl;
+        else {
+            cout << receivedStr << endl; //" | Response Size: " << responseSize << endl;
+        }
     }
 
     // send STOP_SESSION

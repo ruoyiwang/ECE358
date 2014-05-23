@@ -143,6 +143,12 @@ int main (int argc, char *argv[]) {
             perror("err writing to socket");
         }
 
+        // after I send the stop I'll just close the file descriptor
+        if (queryStr == "STOP") {
+            close(clientSocketFileDescriptor);
+            return 0;
+        }
+
         char receiveBuff[256] = {0};
         int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuff, 256, 0, NULL, NULL);
         if (responseSize < 0) {
@@ -150,11 +156,6 @@ int main (int argc, char *argv[]) {
             exit(0);
         }
         cout << receiveBuff << " | Response Size: " << responseSize << endl;
-
-        if (queryStr == "STOP") {
-            close(clientSocketFileDescriptor);
-            return 0;
-        }
     }
 
     // send STOP_SESSION
@@ -162,15 +163,7 @@ int main (int argc, char *argv[]) {
     if (receiveSize < 0) {
         perror("err writing to socket");
     }
-
-    char receiveBuff[256] = {0};
-    int responseSize = recvfrom(clientSocketFileDescriptor, receiveBuff, 256, 0, NULL, NULL);
-    if (responseSize < 0) {
-        perror("failed receiving msg from server or some shit");
-        exit(0);
-    }
-    cout<<receiveBuff<<endl;
-
+    // don't care about the receive and return
     return 0;
 }
 

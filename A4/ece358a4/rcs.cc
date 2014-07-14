@@ -55,6 +55,11 @@ int rcsListen(int sockfd) {
 }
 
 int rcsAccept(int sockfd, struct sockaddr_in * addr) {
+    // must be listening first
+    if (listening_sockets[sockfd] != 1) {
+        return -1;
+    }
+
     packet p2;
     
     initPacket(&p2);
@@ -109,6 +114,8 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         return -1;
     }
 
+    int packet_size = sizeof(packet);
+
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
     sockaddr_in recv_addr;
     packet p1;
@@ -121,7 +128,8 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
 
         // send TCP SYN msg
         p1.flags = p1.flags | SYN_BIT_MASK;
-        ucpSendTo(sockfd, &p1, sizeof(packet), addr);
+        while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
+        // if the packet I'm sending is too small, we just try again
         cout << "sent first packet" <<endl;
         
         // received SYNACK(x)
@@ -138,7 +146,8 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         initPacket(&p1);
         p1.flags = p1.flags | ACK_BIT_MASK;
         p1.ack_num = ack_for_server;
-        ucpSendTo(sockfd, &p1, sizeof(packet), addr);
+        while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
+        // if the packet is too small, we try again
         cout << "sending second packet" <<endl;
         return true;
     }

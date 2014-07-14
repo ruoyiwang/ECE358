@@ -1,6 +1,8 @@
 #ifndef __UCP__
 #define __UCP__
 
+#include <unistd.h>
+
 unsigned int get_rand();
 int ucpSocket();
 int ucpBind(int sockfd, struct sockaddr_in *addr);

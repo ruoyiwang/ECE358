@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <strings.h>
+#include "mybind.c"
 
 extern int errno;
 

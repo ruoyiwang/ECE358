@@ -1,4 +1,4 @@
-#include "ucp.h"
+#include "ucp.c"
 #include "rcs.h"
 #include <map>
 
@@ -27,11 +27,11 @@ int rcsSocket() {
     return ucpSocket();
 }
 
-int rcsBind(int sockfd; struct sockaddr_in * addr) {
+int rcsBind(int sockfd, struct sockaddr_in * addr) {
     return ucpBind(sockfd, addr);
 }
 
-int rcsGetSockName(int sockfd; struct sockaddr_in * addr) {
+int rcsGetSockName(int sockfd, struct sockaddr_in * addr) {
     return ucpGetSockName(sockfd, addr);
 }
 
@@ -53,9 +53,9 @@ int rcsListen(int sockfd) {
     return -1;
 }
 
-int rcsAccept(int sockfd, struct sockaddr_in ∗ addr) {
+int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     packet p2;
-    int rcv_result;
+    
     initPacket(&p2);
     int y = getSynNum(sockfd);
     while (true) {
@@ -95,16 +95,16 @@ int rcsAccept(int sockfd, struct sockaddr_in ∗ addr) {
     return -1;
 }
 
-int rcsConnect(int sockfd, struct sockaddr_in ∗ addr) {
+int rcsConnect(int sockfd, struct sockaddr_in * addr) {
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
-    sockaddr recv_addr;
+    sockaddr_in recv_addr;
     packet p1;
     int x = getSynNum(sockfd);
     int tries = 5;
     while(tries--) {
         initPacket(&p1);
         // choose init seq num, x
-        p1.seq = x;
+        p1.seq_num = x;
 
         // send TCP SYN msg
         p1.flags = p1.flags | SYN_BIT_MASK;

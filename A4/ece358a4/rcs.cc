@@ -90,8 +90,17 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         while (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
             // if the ack bit is not set or wrong ack num start over
             cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
+            if (p2.ack_num == -1) {
+                // client restarting process
+                initPacket(&p2);
+                break;
+            }
             initPacket(&p2);
             ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
+        }
+        if (p2.ack_num == -1) {
+            // broke out of the inner loop because wanna restart
+            continue;
         }
         // indicates client is live
 
@@ -133,7 +142,13 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
 
         // received SYNACK(x)
         initPacket(&p1);
-        if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) == -1) {
+        if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) < 0) {
+            continue;
+        }
+        if (!(p1.flags & ACK_BIT_MASK) || p1.ack_num != x+1) {
+            continue;
+        }
+        if (!(p1.flags & SYN_BIT_MASK)) {
             continue;
         }
         cout << "received first correct packet" <<endl;

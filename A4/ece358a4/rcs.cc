@@ -61,7 +61,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     }
 
     packet p2;
-    
+
     initPacket(&p2);
     int y = getSynNum(sockfd);
     while (true) {
@@ -87,20 +87,19 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         initPacket(&p2);
         ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
         cout << "received second pkt" << endl;
-        if (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
+        while (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
             // if the ack bit is not set or wrong ack num start over
             cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
-            continue;
+            initPacket(&p2);
+            ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
         }
-        else {
-            // indicates client is live
-            
-            // make socket, bind it, and return it
-            int new_socketfd = rcsSocket();
-            cout << "binding, portnum: " << addr->sin_port << endl;
-            bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
-            return new_socketfd;
-        }
+        // indicates client is live
+
+        // make socket, bind it, and return it
+        int new_socketfd = rcsSocket();
+        cout << "binding, portnum: " << addr->sin_port << endl;
+        bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
+        return new_socketfd;
     }
 
     // if it gets here somehow, then idk =___=
@@ -131,7 +130,7 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet I'm sending is too small, we just try again
         cout << "sent first packet" <<endl;
-        
+
         // received SYNACK(x)
         initPacket(&p1);
         if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) == -1) {
@@ -146,10 +145,12 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         initPacket(&p1);
         p1.flags = p1.flags | ACK_BIT_MASK;
         p1.ack_num = ack_for_server;
-        while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
+        // while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet is too small, we try again
         cout << "sending second packet" <<endl;
-        return true;
+        if (ucpSendTo(sockfd, &p1, packet_size, addr) >= packet_size) {
+            return true;
+        }
     }
 
     // "timed out"
@@ -157,3 +158,10 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
     return -1;
 }
 
+int rcsRecv(int sockfd, void * buf, int len) {
+
+}
+
+int rcsSend(int sockfd, void* buf, int len) {
+
+}

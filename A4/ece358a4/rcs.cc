@@ -103,6 +103,12 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
 }
 
 int rcsConnect(int sockfd, struct sockaddr_in * addr) {
+    sockaddr_in addr_temp;
+    if (rcsGetSockName(sockfd, &addr_temp) < 0) {
+        cerr << "sock has not been binded yet" << endl;
+        return -1;
+    }
+
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
     sockaddr_in recv_addr;
     packet p1;

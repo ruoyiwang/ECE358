@@ -72,26 +72,26 @@ int ucpSendTo(int sockfd, const void *buf, int len, const struct sockaddr_in *to
     bcopy(buf, (void *)sendBuf, (size_t)len);
 
     if(get_rand()%100 < pDoEvil) {
-    /* What kind of evil? -- 1 of 3 kinds */
+        /* What kind of evil? -- 1 of 3 kinds */
 
-    int evilKind = get_rand()%3;
-        /* evilKind == 0 -- send only part of the bytes 
-         *             1 -- corrupt some of the bytes
-         *             2 -- don't send packet
-         */
-    if(evilKind == 0) {
-        len = get_rand()%len; /* Guaranteed to be < len */
-    }
-    else if(evilKind == 1) {
-        int i;
-        for(i = 0; i < len; i++) {
-        sendBuf[i] = (unsigned char)(get_rand()%256);
+        int evilKind = get_rand()%3;
+            /* evilKind == 0 -- send only part of the bytes 
+             *             1 -- corrupt some of the bytes
+             *             2 -- don't send packet
+             */
+        if(evilKind == 0) {
+            len = get_rand()%len; /* Guaranteed to be < len */
         }
-    }
-    else {
-        /* Pretend we send all the bytes when we don't */
-        return len;
-    }
+        else if(evilKind == 1) {
+            int i;
+            for(i = 0; i < len; i++) {
+            sendBuf[i] = (unsigned char)(get_rand()%256);
+            }
+        }
+        else {
+            /* Pretend we send all the bytes when we don't */
+            return len;
+        }
     }
 
     return((int)sendto(sockfd, (const void *)sendBuf, (size_t)len, 0,

@@ -3,6 +3,8 @@ CFLAGS = -c -fPIC -Wall -I.
 # ucp.o:
 # 	g++ $(CFLAGS) -o ucp.o 
 
+all: librcs.a test.o
+
 ucp.o: ucp.c
 	g++ $(CFLAGS) -o $@ ucp.c
 

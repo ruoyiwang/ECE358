@@ -1,6 +1,7 @@
 #include "ucp.c"
 #include "rcs.h"
 #include <map>
+#include <iostream>
 
 using namespace std;
 
@@ -60,7 +61,9 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     int y = getSynNum(sockfd);
     while (true) {
         // receive shits
+        cout << "waiting to receive first syn" << endl;
         ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
+        cout << "received first syn" << endl;
 
         if (!(p2.flags & SYN_BIT_MASK)) {
             // if the syn bit is not set, start over
@@ -73,12 +76,15 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         p2.seq_num = y;
         // send TCP SYNACK msg, acking SYN
         ucpSendTo(sockfd, &p2, sizeof(packet), addr);
+        cout << "sending first ack" << endl;
 
         // received ACK(y)
         initPacket(&p2);
         ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
+        cout << "received second pkt" << endl;
         if (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
             // if the ack bit is not set or wrong ack num start over
+            cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
             continue;
         }
         else {
@@ -86,7 +92,8 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
             
             // make socket, bind it, and return it
             int new_socketfd = rcsSocket();
-            rcsBind(new_socketfd, addr);
+            cout << "binding, portnum: " << addr->sin_port << endl;
+            bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
             return new_socketfd;
         }
     }
@@ -101,7 +108,7 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
     packet p1;
     int x = getSynNum(sockfd);
     int tries = 5;
-    while(tries--) {
+    while(true) {
         initPacket(&p1);
         // choose init seq num, x
         p1.seq_num = x;
@@ -109,12 +116,14 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         // send TCP SYN msg
         p1.flags = p1.flags | SYN_BIT_MASK;
         ucpSendTo(sockfd, &p1, sizeof(packet), addr);
+        cout << "sent first packet" <<endl;
         
         // received SYNACK(x)
         initPacket(&p1);
         if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) == -1) {
             continue;
         }
+        cout << "received first correct packet" <<endl;
         // indicates server is live;
 
 
@@ -123,9 +132,9 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         initPacket(&p1);
         p1.flags = p1.flags | ACK_BIT_MASK;
         p1.ack_num = ack_for_server;
-        if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) == -1) {
-            return 0;
-        }
+        ucpSendTo(sockfd, &p1, sizeof(packet), addr);
+        cout << "sending second packet" <<endl;
+        return true;
     }
 
     // "timed out"

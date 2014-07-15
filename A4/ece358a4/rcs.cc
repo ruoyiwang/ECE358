@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <string.h>
 #include "ucp.c"
 #include "rcs.h"
 #include <map>
@@ -6,6 +8,7 @@
 using namespace std;
 
 int ack_for_server;
+sockaddr_in server_addr; // for client to track the server
 map<int, int> listening_sockets;
 
 void initPacket(packet* p) {
@@ -22,6 +25,15 @@ void initPacket(packet* p) {
 int getSynNum(int sockfd) {
     static int acknum = 0;
     return (acknum++) % SYN_NUM_MAX;
+}
+
+int getCheckSum(char * buf, int len) {
+    int i;
+    int ret = 0;
+    for ( i = 0; i < len ; i++) {
+        ret += (int)*(buf+i);
+    }
+    return ret;
 }
 
 int rcsSocket() {
@@ -108,6 +120,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         int new_socketfd = rcsSocket();
         cout << "binding, portnum: " << addr->sin_port << endl;
         bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
+
         return new_socketfd;
     }
 
@@ -125,7 +138,6 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
     int packet_size = sizeof(packet);
 
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
-    sockaddr_in recv_addr;
     packet p1;
     int x = getSynNum(sockfd);
     int tries = 5;
@@ -142,7 +154,7 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
 
         // received SYNACK(x)
         initPacket(&p1);
-        if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &recv_addr) < 0) {
+        if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &server_addr) < 0) {
             continue;
         }
         if (!(p1.flags & ACK_BIT_MASK) || p1.ack_num != x+1) {
@@ -174,9 +186,87 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
 }
 
 int rcsRecv(int sockfd, void * buf, int len) {
+    char * current_partition = (char *) buf;
+    int expected_seq = 0;
+    packet p1, p2;
+    sockaddr_in client_addr; // for server to track the server
+    int bad_packet = 0;
 
+    ucpSetSockRecvTimeout(sockfd, TIME_OUT);
+    for (;;) {
+        initPacket(&p1);
+        ucpRecvFrom(sockfd, &p1, sizeof(packet), &client_addr);
+        if ((p1.seq_num != expected_seq)
+            || (getCheckSum(p1.buff, p1.buff_len) != p1.checksum)) {
+            bad_packet = 1;
+        }
+        if (!bad_packet){
+            initPacket(&p2);
+            p2.ack_num = expected_seq -1;
+            p2.buff_len = 0;
+            p1.flags = p1.flags | ACK_BIT_MASK;
+            ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+        }
+        else {
+            initPacket(&p2);
+            p2.ack_num = expected_seq;
+            p2.buff_len = 0;
+            p1.flags = p1.flags | ACK_BIT_MASK;
+            //proccess
+            memcpy (current_partition, p2.buff, p2.buff_len);
+            current_partition = current_partition + p2.buff_len;
+            expected_seq = (expected_seq + 1) % SYN_NUM_MAX;
+            if (p1.flags & END_BIT_MASK) {
+                p2.flags = p2.flags | END_BIT_MASK;
+                ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+                return 0;
+            }
+            ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+        }
+
+    }
+    return -1;
 }
 
 int rcsSend(int sockfd, void* buf, int len) {
-
+    char * current_partition = (char *) buf;
+    int i, buff_len, expected_ack = 0;
+    int seq_window_start = 0;
+    packet p1, p2;
+    initPacket(&p1);
+    ucpSetSockRecvTimeout(sockfd, TIME_OUT);
+    for(;;) {
+        for (i = 0; i < WINDOW_SIZE; i ++) {
+            buff_len = BUFFER_SIZE;
+            if ( ((char *)buf - current_partition) < BUFFER_SIZE ) {
+                buff_len = ((char *)buf - current_partition);
+                p1.flags = p1.flags | END_BIT_MASK;
+                break;
+            }
+            p1.seq_num = (seq_window_start + i) % SYN_NUM_MAX;
+            p1.ack_num = ack_for_server;
+            p1.checksum = getCheckSum(current_partition, buff_len);
+            memcpy(p1.buff, current_partition, buff_len);
+            p1.buff_len = buff_len;
+            p1.flags = p1.flags | ACK_BIT_MASK;
+            p1.flags = p1.flags | SYN_BIT_MASK;
+            ucpSendTo(sockfd, &p1, sizeof(packet), &server_addr);
+        }
+        for (i = 0; i < WINDOW_SIZE; i ++) {
+            initPacket(&p2);
+            ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
+            if (p2.ack_num != expected_ack) {
+                if (p2.flags & END_BIT_MASK) {
+                    break;
+                }
+                continue;
+            }
+            expected_ack++;
+            seq_window_start++;
+            if (p2.flags & END_BIT_MASK) {
+                return 0;
+            }
+        }
+    }
+    return -1;
 }

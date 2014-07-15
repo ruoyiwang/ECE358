@@ -3,12 +3,13 @@
 
 #include <netinet/in.h>
 
-#define BUFFER_SIZE     128     // Bytes?
+#define BUFFER_SIZE     1000     // Bytes?
 #define TIME_OUT        100    // ms, yeah idk how long is good lol
 #define SYN_NUM_MAX     10000
 #define WINDOW_SIZE     5
 #define SYN_BIT_MASK    1
 #define ACK_BIT_MASK    2
+#define END_BIT_MASK    4
 
 typedef struct packet_t {
     int ack_num;
@@ -26,7 +27,7 @@ typedef struct packet_t {
 //     int ack_bit;
 //     int ack_num;
 // } handshake;
-
+int getCheckSum(char * buf, int len);
 int rcsSocket();
 int rcsBind(int sockfd, struct sockaddr_in * addr);
 int rcsGetSockName(int sockfd, struct sockaddr_in * addr);
@@ -34,5 +35,7 @@ int rcsListen(int sockfd);
 
 int rcsAccept(int sockfd, struct sockaddr_in * addr);
 int rcsConnect(int sockfd, struct sockaddr_in * addr);
+int rcsSend(int sockfd, void* buf, int len);
+int rcsRecv(int sockfd, void * buf, int len);
 
 #endif

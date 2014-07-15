@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
-#include <time.h> 
+#include <time.h>
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
 
         struct sockaddr_in my_addr, their_addr;
         socklen_t addrlen = sizeof(struct sockaddr_in);
-        
-        // get the ip information 
+
+        // get the ip information
         if(getifaddrs(&myaddrs) != 0)
         {
             perror("getifaddrs");
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 
         // print the port
         printf ("%hu\n", ntohs(my_addr.sin_port));
-        
+
 
         ////////////////////////////////////////////
 
@@ -111,6 +111,12 @@ int main(int argc, char** argv) {
         rcsAccept(sockfd, &sock_addr);
 
         cout << "connection established" << endl;
+
+        char buff[20000];
+        rcsRecv(sockfd, (void*) buff, 20000);
+        for (int i=0; i < 20000 / BUFFER_SIZE; i ++){
+            cout<<"section "<<i<<": "<<buff+i*BUFFER_SIZE<<endl;
+        }
     }
     else if (argc >= 3) {
         // run as client
@@ -132,7 +138,7 @@ int main(int argc, char** argv) {
         localSockAddr.sin_family = AF_INET;
         localSockAddr.sin_port = htons(0);
         localSockAddr.sin_addr.s_addr = INADDR_ANY;
-        
+
         if (rcsBind (clientSocketFileDescriptor, (&localSockAddr)) < 0) {
             cerr << "failed biding client" << endl;
             return 0;
@@ -178,8 +184,13 @@ int main(int argc, char** argv) {
         }
 
         cout << "connection established" << endl;
-
         ////////////////////////////////////////////
+        char buff[20000];
+        for (int i = 0; i < 20000/BUFFER_SIZE; i++){
+            sprintf(buff + i*BUFFER_SIZE, "YO WHATS UPPPPPP!!!!%d", i);
+            // strcpy(buff + i*BUFFER_SIZE, );
+        }
+        rcsSend(clientSocketFileDescriptor, (void*) buff, 20000);
     }
     return 0;
 }

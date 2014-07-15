@@ -6,7 +6,7 @@ CFLAGS = -c -fPIC -Wall -I.
 all: librcs.a test.o
 
 ucp.o: ucp.c
-	g++ $(CFLAGS) -o $@ ucp.c
+	gcc $(CFLAGS) -o $@ ucp.c
 
 rcs.o: rcs.cc rcs.h ucp.o
 	g++ $(CFLAGS) -o $@ rcs.cc

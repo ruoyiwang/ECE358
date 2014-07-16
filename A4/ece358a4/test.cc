@@ -113,13 +113,14 @@ int main(int argc, char** argv) {
         cout << "connection established" << endl;
 
         char buff[200000];
-        for (int i = 0; i < 2000000/BUFFER_SIZE; i++){
+        for (int i = 0; i < 20000/BUFFER_SIZE; i++){
             sprintf(buff + i*BUFFER_SIZE, "aaa");
             // strcpy(buff + i*BUFFER_SIZE, );
         }
-        rcsRecv(sockfd, (void*) buff, 2000000);
-        rcsRecv(sockfd, (void*) buff, 2000000);
-        for (int i=0; i < 2000000 / BUFFER_SIZE; i ++){
+        for (int i = 0; i < 100; i++) {
+            rcsRecv(sockfd, (void*) buff, 20000);
+        }
+        for (int i=0; i < 20000 / BUFFER_SIZE; i ++){
             if ( atoi(buff+i*BUFFER_SIZE) != i ) {
                 cout<<"section "<<i<<": "<<buff+i*BUFFER_SIZE<<endl;
                 return 0;
@@ -193,13 +194,14 @@ int main(int argc, char** argv) {
 
         cout << "connection established" << endl;
         ////////////////////////////////////////////
-        char buff[2000000];
-        for (int i = 0; i < 2000000/BUFFER_SIZE; i++){
+        char buff[20000];
+        for (int i = 0; i < 20000/BUFFER_SIZE; i++){
             sprintf(buff + i*BUFFER_SIZE, "%d", i);
             // strcpy(buff + i*BUFFER_SIZE, );
         }
-        rcsSend(clientSocketFileDescriptor, (void*) buff, 2000000);
-        rcsSend(clientSocketFileDescriptor, (void*) buff, 2000000);
+        for (int i = 0; i < 100; i++) {
+            rcsSend(clientSocketFileDescriptor, (void*) buff, 20000);
+        }
     }
     return 0;
 }

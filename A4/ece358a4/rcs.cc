@@ -8,8 +8,9 @@
 using namespace std;
 
 int ack_for_server;
-sockaddr_in server_addr; // for client to track the server
+// sockaddr_in server_addr; // for client to track the server
 map<int, int> listening_sockets;
+map<int, sockaddr_in> server_addr_map;
 
 void initPacket(packet* p) {
     p->ack_num = -1;
@@ -20,6 +21,26 @@ void initPacket(packet* p) {
     p->flags = 0;
 
     return;
+}
+
+int lookup_addr_map(int sockfd, struct sockaddr_in * addr) {
+    // check if we ever mapped it
+    if (server_addr_map.find(sockfd) == server_addr_map.end()) {
+        return -1;
+    }
+
+    // copy the data from map into addr so stuff can use it
+    memcpy(addr, &(server_addr_map[sockfd]), sizeof(sockaddr_in));
+
+    return 0;
+}
+
+int map_addr(int sockfd, struct sockaddr_in * addr) {
+    sockaddr_in temp_addr;
+    memcpy(&temp_addr, addr, sizeof(sockaddr_in));
+    server_addr_map[sockfd] = temp_addr;
+
+    return 0;
 }
 
 int getSynNum(int sockfd) {
@@ -119,7 +140,8 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         // make socket, bind it, and return it
         int new_socketfd = rcsSocket();
         cout << "binding, portnum: " << addr->sin_port << endl;
-        bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
+        // bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
+        map_addr(new_socketfd, addr);
 
         return new_socketfd;
     }
@@ -129,7 +151,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
 }
 
 int rcsConnect(int sockfd, struct sockaddr_in * addr) {
-    sockaddr_in addr_temp;
+    sockaddr_in addr_temp, server_addr;
     if (rcsGetSockName(sockfd, &addr_temp) < 0) {
         cerr << "sock has not been binded yet" << endl;
         return -1;
@@ -163,6 +185,7 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
         if (!(p1.flags & SYN_BIT_MASK)) {
             continue;
         }
+        map_addr(sockfd, &server_addr);
         cout << "received first correct packet" <<endl;
         // indicates server is live;
 
@@ -263,6 +286,9 @@ int rcsSend(int sockfd, void* buf, int len) {
     packet p1, p2;
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
 
+    sockaddr_in server_addr;
+    lookup_addr_map(sockfd, &server_addr);
+
     // int final_ack = -2300;
 
     cout<< "Sending "<<endl;
@@ -299,7 +325,7 @@ int rcsSend(int sockfd, void* buf, int len) {
             ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
             cout<< "received ack#"<< p2.ack_num<<" expecting "<<expected_ack<<endl;
             if (p2.ack_num == TERM_ACK && p2.flags & END_BIT_MASK) {
-                for (int j = 0; j < 10; j ++) {\
+                for (int j = 0; j < 12; j ++) {\
                     ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
                 }
                 return 0;

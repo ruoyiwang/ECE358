@@ -44,29 +44,29 @@ void *serviceConnection(void *arg) {
     ssize_t recvlen = 0;
     while((recvlen = recv(s, buf, 256, 0)) >= 0) {
 #ifdef _DEBUG_
-    	if(recvlen > 0) {
-    	    printf("%lu received %d bytes.\n",
-		    pthread_self(), recvlen);
-    	}
+        	if(recvlen > 0) {
+        	    printf("%lu received %d bytes.\n",
+    		    pthread_self(), recvlen);
+        	}
 #endif
 
-	if(recvlen <= 0) {
-	    /* quit */
+    	if(recvlen <= 0) {
+    	    /* quit */
 #ifdef _DEBUG_
-	    printf("%lu exiting, spot 1...\n", pthread_self());
+    	    printf("%lu exiting, spot 1...\n", pthread_self());
 #endif
-	    close(wfd);
-	    return NULL;
-	}
+    	    close(wfd);
+    	    return NULL;
+    	}
 
 #if 0
-	if(write(STDOUT_FILENO, buf, recvlen) < recvlen) {
+    	if(write(STDOUT_FILENO, buf, recvlen) < recvlen) {
 #endif
-	if(write(wfd, buf, recvlen) < recvlen) {
-	    perror("write() in thread wrote too few");
-	    close(wfd);
-	    return NULL;
-	}
+    	if(write(wfd, buf, recvlen) < recvlen) {
+    	    perror("write() in thread wrote too few");
+    	    close(wfd);
+    	    return NULL;
+    	}
     }
 
 #ifdef _DEBUG_
@@ -92,7 +92,7 @@ uint32_t getPublicIPAddr() {
 	    memcpy(&a, (c->ifa_addr), sizeof(struct sockaddr_in));
 	    char *as = inet_ntoa(a.sin_addr);
 	    //printf("%s\n", as);
-	    
+
 	    int apart;
 	    sscanf(as, "%d", &apart);
 	    if(apart > 0 && apart != 127) {
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("%s %u\n", inet_ntoa(a.sin_addr), ntohs(a.sin_port));
-    
+
     if(listen(s, 0) < 0) {
 	perror("listen"); exit(0);
     }
@@ -133,15 +133,15 @@ int main(int argc, char *argv[]) {
     socklen_t alen = sizeof(struct sockaddr_in);
     int asock;
     while((asock = accept(s, (struct sockaddr *)&a, &alen)) > 0) {
-	int *newasock = (int *)malloc(sizeof(int));
-	*newasock = asock;
-	int err;
-	pthread_t t;
+    	int *newasock = (int *)malloc(sizeof(int));
+    	*newasock = asock;
+    	int err;
+    	pthread_t t;
 
-	if(err = pthread_create(&t, NULL, &serviceConnection, (void *)(newasock))) {
-	    fprintf(stderr, "pthread_create(): %s\n", strerror(err));
-	    exit(1);
-	}
+    	if(err = pthread_create(&t, NULL, &serviceConnection, (void *)(newasock))) {
+    	    fprintf(stderr, "pthread_create(): %s\n", strerror(err));
+    	    exit(1);
+    	}
     }
 
     return 0;

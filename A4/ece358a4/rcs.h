@@ -2,13 +2,14 @@
 #define __RCS__
 
 #include <netinet/in.h>
-#define TRUE 		    1     // Bytes?
-#define FALSE       	0    // ms, yeah idk how long is good lol
+#define TRUE 		    1
+#define FALSE       	0
+#define TERM_ACK       	-2
 
-#define BUFFER_SIZE     100     // Bytes?
+#define BUFFER_SIZE     1000     // Bytes?
 #define TIME_OUT        10   // ms, yeah idk how long is good lol
 #define SYN_NUM_MAX     10000
-#define WINDOW_SIZE     5
+#define WINDOW_SIZE     3
 #define SYN_BIT_MASK    1
 #define ACK_BIT_MASK    2
 #define END_BIT_MASK    4

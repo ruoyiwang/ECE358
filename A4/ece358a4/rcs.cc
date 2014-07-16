@@ -199,9 +199,9 @@ int rcsRecv(int sockfd, void * buf, int len) {
         ucpRecvFrom(sockfd, &p1, sizeof(packet), &client_addr);
         if (terminated) {
             cout<< "terminating "<<expected_seq<<endl;
-            for (int i = 0; i < WINDOW_SIZE; i ++) {
+            for (int i = 0; i < 10; i ++) {
                 p2.flags = p2.flags | END_BIT_MASK;
-                p2.ack_num = expected_seq;
+                p2.ack_num = TERM_ACK;
                 ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
             }
             return 0;
@@ -233,15 +233,19 @@ int rcsRecv(int sockfd, void * buf, int len) {
             //proccess
 
             cout<< "inserting chunk "<< current_partition - (char*)buf<<endl;
-            memcpy (current_partition, p1.buff, p1.buff_len);
-            current_partition = current_partition + p1.buff_len;
 
             if (p1.flags & END_BIT_MASK) {
+                p2.ack_num = TERM_ACK;
                 p2.flags = p2.flags | END_BIT_MASK;
                 ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
                 terminated = TRUE;
+                current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
+                memcpy (current_partition, p1.buff, p1.buff_len);
                 continue;
             }
+            // current_partition = current_partition + p1.buff_len;
+            current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
+            memcpy (current_partition, p1.buff, p1.buff_len);
             expected_seq = (expected_seq + 1) % SYN_NUM_MAX;
             cout<< "Sending ack#"<< p2.ack_num<<endl;
             ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
@@ -259,7 +263,7 @@ int rcsSend(int sockfd, void* buf, int len) {
     packet p1, p2;
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
 
-    int final_ack = -2300;
+    // int final_ack = -2300;
 
     cout<< "Sending "<<endl;
     for(;;) {
@@ -272,8 +276,8 @@ int rcsSend(int sockfd, void* buf, int len) {
                 cout<< "Sending remaining"<<((char*)buf + len - current_partition)<<endl;
                 buff_len = ((char*)buf + len - current_partition);
                 p1.flags = p1.flags | END_BIT_MASK;
-                final_ack = (seq_window_start + i) % SYN_NUM_MAX;
-                cout<< "terminating "<<final_ack<<endl;
+                // final_ack = (seq_window_start + i) % SYN_NUM_MAX;
+                cout<< "terminating"<<endl;
             }
 
             p1.seq_num = (seq_window_start + i) % SYN_NUM_MAX;
@@ -294,7 +298,10 @@ int rcsSend(int sockfd, void* buf, int len) {
             initPacket(&p2);
             ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
             cout<< "received ack#"<< p2.ack_num<<" expecting "<<expected_ack<<endl;
-            if (p2.ack_num == final_ack && p2.flags & END_BIT_MASK) {
+            if (p2.ack_num == TERM_ACK && p2.flags & END_BIT_MASK) {
+                for (int j = 0; j < 10; j ++) {\
+                    ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
+                }
                 return 0;
             }
             if (p2.ack_num != expected_ack) {

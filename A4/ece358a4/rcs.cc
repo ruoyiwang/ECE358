@@ -130,13 +130,14 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     if (rcsBind(new_socketfd, &new_sockaddr) < 0) {
         cout << "error binding to new port" <<endl;
     }
-    cout << "saving, portnum: " << new_sockaddr.sin_port << endl;
+    cout << "saving, portnum: " << ntohs(new_sockaddr.sin_port) << endl;
     rcsListen(new_socketfd);
 
     while (true) {
         // receive shits
         cout << "waiting to receive first syn" << endl;
-        ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
+        int received_len = ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
+        cout << received_len << endl;
         cout << "received first syn" << endl;
 
         if (!(p2.flags & SYN_BIT_MASK)) {
@@ -156,6 +157,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         initPacket(&p2);
         // need to start listening on both ports
         ucpSetSockRecvTimeout(sockfd, TIME_OUT);
+        ucpSetSockRecvTimeout(new_socketfd, TIME_OUT);
         while (
             ucpRecvFrom(sockfd, &p2, sizeof(packet), addr) < 0 &&
             ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0 
@@ -229,7 +231,7 @@ int rcsConnect(int sockfd, struct sockaddr_in * addr) {
             continue;
         }
         map_addr(sockfd, &server_addr);
-        cout << "received first correct packet from port: " << addr->sin_port <<endl;
+        cout << "received first correct packet from port: " << ntohs(server_addr.sin_port) <<endl;
         // indicates server is live;
 
 

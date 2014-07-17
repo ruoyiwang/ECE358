@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
             sprintf(buff + i*BUFFER_SIZE, "aaa");
             // strcpy(buff + i*BUFFER_SIZE, );
         }
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             cout<<i<<endl;
             if(rcsRecv(client_sockfd, (void*) buff, 20000) < 0){
                 break;

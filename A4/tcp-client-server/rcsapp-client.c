@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     }
 
     while((nread = read(STDIN_FILENO, buf, 256)) > 0) {
-        printf("LOL WTF\n");
+        // printf("LOL WTF\n");
         if(rcsSend(s, buf, nread) < 0) {
             perror("send"); exit(1);
         }

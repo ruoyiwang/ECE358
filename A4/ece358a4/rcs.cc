@@ -4,6 +4,7 @@
 #include "rcs.h"
 #include <map>
 #include <iostream>
+#include <mybind.c>
 
 using namespace std;
 

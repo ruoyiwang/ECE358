@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
         cout << argv[1] << endl;
         int sockfd = rcsSocket();
 
-        rcsListen(sockfd);
         //////////////////////////////////////////////////////////////
         // initialize everything
         struct ifaddrs *myaddrs, *ifa;
@@ -90,6 +89,7 @@ int main(int argc, char** argv) {
         if (rcsBind (sockfd, (&my_addr)) < 0) {
             cerr << "failed biding server to port" << endl;
         }
+        rcsListen(sockfd);
         memset (&my_addr, 0, sizeof(struct sockaddr_in));
 
         // get the portnumber here

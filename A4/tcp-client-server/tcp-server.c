@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <rcs.h>
 #include <fcntl.h>
 
 #if 0
@@ -42,7 +43,7 @@ void *serviceConnection(void *arg) {
 
     unsigned char buf[256];
     ssize_t recvlen = 0;
-    while((recvlen = recv(s, buf, 256, 0)) >= 0) {
+    while((recvlen = rcsRecv(s, buf, 256)) >= 0) {
 #ifdef _DEBUG_
         	if(recvlen > 0) {
         	    printf("%lu received %d bytes.\n",
@@ -55,7 +56,7 @@ void *serviceConnection(void *arg) {
 #ifdef _DEBUG_
     	    printf("%lu exiting, spot 1...\n", pthread_self());
 #endif
-    	    close(wfd);
+    	    rcsClose(wfd);
     	    return NULL;
     	}
 
@@ -64,7 +65,7 @@ void *serviceConnection(void *arg) {
 #endif
     	if(write(wfd, buf, recvlen) < recvlen) {
     	    perror("write() in thread wrote too few");
-    	    close(wfd);
+    	    rcsClose(wfd);
     	    return NULL;
     	}
     }
@@ -72,7 +73,7 @@ void *serviceConnection(void *arg) {
 #ifdef _DEBUG_
     printf("%lu exiting, spot 2...\n", pthread_self());
 #endif
-    close(wfd);
+    rcsClose(wfd);
     return NULL;
 }
 
@@ -107,7 +108,7 @@ uint32_t getPublicIPAddr() {
 }
 
 int main(int argc, char *argv[]) {
-    int s = socket(AF_INET, SOCK_STREAM, 0);
+    int s = rcsSocket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in a;
 
     memset(&a, 0, sizeof(struct sockaddr_in));
@@ -118,21 +119,21 @@ int main(int argc, char *argv[]) {
 	exit(0);
     }
 
-    if(mybind(s, &a) < 0) {
+    if(rcsBind(s, &a) < 0) {
 	fprintf(stderr, "mybind() failed. Exiting...\n");
 	exit(0);
     }
 
     printf("%s %u\n", inet_ntoa(a.sin_addr), ntohs(a.sin_port));
 
-    if(listen(s, 0) < 0) {
+    if(rcsListen(s) < 0) {
 	perror("listen"); exit(0);
     }
 
     memset(&a, 0, sizeof(struct sockaddr_in));
     socklen_t alen = sizeof(struct sockaddr_in);
     int asock;
-    while((asock = accept(s, (struct sockaddr *)&a, &alen)) > 0) {
+    while((asock = rcsAccept(s, (struct sockaddr_in *)&a)) > 0) {
     	int *newasock = (int *)malloc(sizeof(int));
     	*newasock = asock;
     	int err;

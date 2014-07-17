@@ -366,5 +366,5 @@ int rcsClose(int sockfd) {
         p1.ack_num = CLOSE_ACK;
         ucpSendTo(sockfd, &p1, sizeof(packet), &addr);
     }
-
+    return 0;
 }

@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <rcs.h>
 
 unsigned int getrand() {
     int f = open("/dev/urandom", O_RDONLY);
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
     	printf("usage: %s <server-ip> <server-port>\n", argv[0]);
     	exit(0);
     }
-    int s = socket(AF_INET, SOCK_STREAM, 0);
+    int s = rcsSocket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in a;
 
     memset(&a, 0, sizeof(struct sockaddr_in));
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
     a.sin_port = 0;
     a.sin_addr.s_addr = INADDR_ANY;
 
-    if(bind(s, (const struct sockaddr *)(&a), sizeof(struct sockaddr_in)) < 0) {
+    if(rcsBind(s, (const struct sockaddr_in *)(&a)) < 0) {
 	   perror("bind"); exit(1);
     }
 
@@ -60,20 +61,20 @@ int main(int argc, char *argv[]) {
     	exit(1);
     }
 
-    if(connect(s, (const struct sockaddr *)(&a), sizeof(struct sockaddr_in)) < 0) {
+    if(rcsConnect(s, (const struct sockaddr_in *)(&a)) < 0) {
 	   perror("connect"); exit(1);
     }
 
     while((nread = read(STDIN_FILENO, buf, 256)) > 0) {
-    	if(send(s, buf, nread, MSG_NOSIGNAL) < 0) {
+    	if(rcsSend(s, buf, nread) < 0) {
     	    perror("send"); exit(1);
     	}
 
     	sleep(getrand()%7);
     }
 
-    shutdown(s, SHUT_RDWR);
-    close(s);
+    // shutdown(s, SHUT_RDWR);
+    rcsClose(s);
 
     return 0;
 }

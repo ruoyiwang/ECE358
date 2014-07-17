@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#if 1
+#if 0
 #define _DEBUG_
 #endif
 

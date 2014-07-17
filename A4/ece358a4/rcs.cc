@@ -130,17 +130,17 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     new_sockaddr.sin_port = 0;
     new_sockaddr.sin_addr.s_addr = INADDR_ANY;
     if (rcsBind(new_socketfd, &new_sockaddr) < 0) {
-        cout << "error binding to new port" <<endl;
+        // cout << "error binding to new port" <<endl;
     }
     cout << "saving, portnum: " << ntohs(new_sockaddr.sin_port) << endl;
     rcsListen(new_socketfd);
 
     while (true) {
         // receive shits
-        cout << "waiting to receive first syn" << endl;
+        // cout << "waiting to receive first syn" << endl;
         int received_len = ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
         cout << received_len << endl;
-        cout << "received first syn" << endl;
+        // cout << "received first syn" << endl;
 
         if (!(p2.flags & SYN_BIT_MASK)) {
             // if the syn bit is not set, start over
@@ -153,7 +153,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         p2.seq_num = y;
         // send TCP SYNACK msg, acking SYN with new port
         ucpSendTo(new_socketfd, &p2, sizeof(packet), addr);
-        cout << "sending first ack" << endl;
+        // cout << "sending first ack" << endl;
 
         // received ACK(y)
         initPacket(&p2);
@@ -165,10 +165,10 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
             ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0
         ) {}
 
-        cout << "received second pkt" << endl;
+        // cout << "received second pkt" << endl;
         while (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
             // if the ack bit is not set or wrong ack num start over
-            cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
+            // cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
             if (p2.ack_num == -1) {
                 // client restarting process
                 initPacket(&p2);
@@ -199,7 +199,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
 int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
     sockaddr_in addr_temp, server_addr;
     if (rcsGetSockName(sockfd, &addr_temp) < 0) {
-        cerr << "sock has not been binded yet" << endl;
+        // cerr << "sock has not been binded yet" << endl;
         return -1;
     }
 
@@ -218,12 +218,12 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
         p1.flags = p1.flags | SYN_BIT_MASK;
         while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet I'm sending is too small, we just try again
-        cout << "sent first packet" <<endl;
+        // cout << "sent first packet" <<endl;
 
         // received SYNACK(x)
         initPacket(&p1);
         if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &server_addr) < 0) {
-            cout << "failed receiving\n" << addr->sin_port;
+            // cout << "failed receiving\n" << addr->sin_port;
             continue;
         }
         if (!(p1.flags & ACK_BIT_MASK) || p1.ack_num != x+1) {
@@ -233,7 +233,7 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
             continue;
         }
         map_addr(sockfd, &server_addr);
-        cout << "received first correct packet from port: " << ntohs(server_addr.sin_port) <<endl;
+        // cout << "received first correct packet from port: " << ntohs(server_addr.sin_port) <<endl;
         // indicates server is live;
 
 
@@ -244,7 +244,7 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
         p1.ack_num = ack_for_server;
         // while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet is too small, we try again
-        cout << "sending second packet" <<endl;
+        // cout << "sending second packet" <<endl;
         if (ucpSendTo(sockfd, &p1, packet_size, addr) >= packet_size) {
             return true;
         }

@@ -10,6 +10,7 @@ using namespace std;
 int ack_for_server;
 // sockaddr_in server_addr; // for client to track the server
 map<int, int> listening_sockets;
+map<int, int> client_server_sockets;
 map<int, sockaddr_in> server_addr_map;
 
 void initPacket(packet* p) {
@@ -142,7 +143,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         cout << "binding, portnum: " << addr->sin_port << endl;
         // bind(new_socketfd, (const sockaddr *)addr, sizeof(struct sockaddr_in));
         map_addr(new_socketfd, addr);
-
+        client_server_sockets[new_socketfd] = sockfd;
         return new_socketfd;
     }
 
@@ -215,17 +216,26 @@ int rcsRecv(int sockfd, void * buf, int len) {
     sockaddr_in client_addr; // for server to track the server
     int bad_packet = FALSE;
     int terminated = FALSE;
+    int server_sockfd = client_server_sockets[sockfd];
 
-    ucpSetSockRecvTimeout(sockfd, TIME_OUT);
+    ucpSetSockRecvTimeout(server_sockfd, TIME_OUT);
     for (;;) {
         initPacket(&p1);
-        ucpRecvFrom(sockfd, &p1, sizeof(packet), &client_addr);
+        ucpRecvFrom(server_sockfd, &p1, sizeof(packet), &client_addr);
+
+        if (p1.ack_num == CLOSE_ACK && p1.flags & END_BIT_MASK) {
+            for (int j = 0; j < 12; j ++) {
+                ucpRecvFrom(server_sockfd, &p1, sizeof(packet), &client_addr);
+            }
+            return -1;
+        }
+
         if (terminated) {
-            cout<< "terminating "<<expected_seq<<endl;
+            // cout<< "terminating "<<expected_seq<<endl;
             for (int i = 0; i < 10; i ++) {
                 p2.flags = p2.flags | END_BIT_MASK;
                 p2.ack_num = TERM_ACK;
-                ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+                ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
             }
             return 0;
         }
@@ -234,10 +244,10 @@ int rcsRecv(int sockfd, void * buf, int len) {
             || (getCheckSum(p1.buff, p1.buff_len) != p1.checksum)) {
             bad_packet = 1;
         }
-        cout<< "received seq#"<< p1.seq_num<<" expecting "<<expected_seq<<endl;
+        // cout<< "received seq#"<< p1.seq_num<<" expecting "<<expected_seq<<endl;
 
         if (bad_packet){
-            cout<< "bad_packet"<< expected_seq<<endl;
+            // cout<< "bad_packet"<< expected_seq<<endl;
             initPacket(&p2);
             p2.ack_num = p1.seq_num;
             if (p1.seq_num == expected_seq){
@@ -245,22 +255,22 @@ int rcsRecv(int sockfd, void * buf, int len) {
             }
             p2.buff_len = 0;
             p1.flags = p1.flags | ACK_BIT_MASK;
-            ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+            ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
         }
         else {
-            cout<< "good_packet"<< expected_seq<<endl;
+            // cout<< "good_packet"<< expected_seq<<endl;
             initPacket(&p2);
             p2.ack_num = expected_seq;
             p2.buff_len = 0;
             p1.flags = p1.flags | ACK_BIT_MASK;
             //proccess
 
-            cout<< "inserting chunk "<< current_partition - (char*)buf<<endl;
+            // cout<< "inserting chunk "<< current_partition - (char*)buf<<endl;
 
             if (p1.flags & END_BIT_MASK) {
                 p2.ack_num = TERM_ACK;
                 p2.flags = p2.flags | END_BIT_MASK;
-                ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+                ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
                 terminated = TRUE;
                 current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
                 memcpy (current_partition, p1.buff, p1.buff_len);
@@ -270,8 +280,8 @@ int rcsRecv(int sockfd, void * buf, int len) {
             current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
             memcpy (current_partition, p1.buff, p1.buff_len);
             expected_seq = (expected_seq + 1) % SYN_NUM_MAX;
-            cout<< "Sending ack#"<< p2.ack_num<<endl;
-            ucpSendTo(sockfd, &p2, sizeof(packet), &client_addr);
+            // cout<< "Sending ack#"<< p2.ack_num<<endl;
+            ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
         }
         bad_packet = 0;
 
@@ -291,7 +301,7 @@ int rcsSend(int sockfd, void* buf, int len) {
 
     // int final_ack = -2300;
 
-    cout<< "Sending "<<endl;
+    // cout<< "Sending "<<endl;
     for(;;) {
         for (i = 0; i < WINDOW_SIZE; i ++) {
             initPacket(&p1);
@@ -299,11 +309,11 @@ int rcsSend(int sockfd, void* buf, int len) {
             current_partition = (char *)buf + (seq_window_start + i) * BUFFER_SIZE;
 
             if ( (current_partition + BUFFER_SIZE - (char *)buf) >= len ) {
-                cout<< "Sending remaining"<<((char*)buf + len - current_partition)<<endl;
+                // cout<< "Sending remaining"<<((char*)buf + len - current_partition)<<endl;
                 buff_len = ((char*)buf + len - current_partition);
                 p1.flags = p1.flags | END_BIT_MASK;
                 // final_ack = (seq_window_start + i) % SYN_NUM_MAX;
-                cout<< "terminating"<<endl;
+                // cout<< "terminating"<<endl;
             }
 
             p1.seq_num = (seq_window_start + i) % SYN_NUM_MAX;
@@ -314,7 +324,7 @@ int rcsSend(int sockfd, void* buf, int len) {
             p1.flags = p1.flags | ACK_BIT_MASK;
             p1.flags = p1.flags | SYN_BIT_MASK;
 
-            cout<< "Sending Seq#"<< p1.seq_num<<endl;
+            // cout<< "Sending Seq#"<< p1.seq_num<<endl;
             ucpSendTo(sockfd, &p1, sizeof(packet), &server_addr);
             if (p1.flags & END_BIT_MASK) {
                 break;
@@ -323,9 +333,16 @@ int rcsSend(int sockfd, void* buf, int len) {
         for (i = 0; i < WINDOW_SIZE; i ++) {
             initPacket(&p2);
             ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
-            cout<< "received ack#"<< p2.ack_num<<" expecting "<<expected_ack<<endl;
+            // cout<< "received ack#"<< p2.ack_num<<" expecting "<<expected_ack<<endl;
+            if (p2.ack_num == CLOSE_ACK && p2.flags & END_BIT_MASK) {
+                for (int j = 0; j < 12; j ++) {
+                    ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
+                }
+                return -1;
+            }
+
             if (p2.ack_num == TERM_ACK && p2.flags & END_BIT_MASK) {
-                for (int j = 0; j < 12; j ++) {\
+                for (int j = 0; j < 12; j ++) {
                     ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
                 }
                 return 0;
@@ -338,4 +355,16 @@ int rcsSend(int sockfd, void* buf, int len) {
         }
     }
     return -1;
+}
+
+int rcsClose(int sockfd) {
+    sockaddr_in addr;
+    packet p1;
+    lookup_addr_map(sockfd, &addr);
+    for (int i = 0; i < 10; i ++) {
+        p1.flags = p1.flags | END_BIT_MASK;
+        p1.ack_num = CLOSE_ACK;
+        ucpSendTo(sockfd, &p1, sizeof(packet), &addr);
+    }
+
 }

@@ -5,6 +5,7 @@
 #define TRUE 		    1
 #define FALSE       	0
 #define TERM_ACK       	-2
+#define CLOSE_ACK      	-3
 
 #define BUFFER_SIZE     1000     // Bytes?
 #define TIME_OUT        10   // ms, yeah idk how long is good lol
@@ -40,5 +41,6 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr);
 int rcsConnect(int sockfd, struct sockaddr_in * addr);
 int rcsSend(int sockfd, void* buf, int len);
 int rcsRecv(int sockfd, void * buf, int len);
+int rcsClose(int sockfd);
 
 #endif

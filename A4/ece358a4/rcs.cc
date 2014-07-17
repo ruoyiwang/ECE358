@@ -59,7 +59,15 @@ int getCheckSum(char * buf, int len) {
 }
 
 int rcsSocket() {
-    return ucpSocket();
+    int sockfd = ucpSocket();
+    if (sockfd < 0) {
+        // ucp socket should have set flags 
+        return -1;
+    }
+
+    // remembers we made this socket
+    listening_sockets[sockfd] = 0;
+    return sockfd;
 }
 
 int rcsBind(int sockfd, struct sockaddr_in * addr) {
@@ -72,20 +80,32 @@ int rcsGetSockName(int sockfd, struct sockaddr_in * addr) {
 
 int rcsListen(int sockfd) {
     // check the flags and stuff
+    // check ENOTSOCK
     if (listening_sockets.find(sockfd) == listening_sockets.end()) {
-        // if never listened before
-        listening_sockets[sockfd] = 1;
-        return 0;
+        errno = ENOTSOCK;
+        return -1;
     }
-    else if (listening_sockets.find(sockfd)->second != 1) {
-        // if we ever somehow "unlistened", we can listen again
-        listening_sockets[sockfd] = 1;
-        return 0;
+    // check EBADF
+    sockaddr_in temp;
+    if (rcsGetSockName(sockfd, &temp) < 0) {
+        errno = EBADF;
+        return -1;
+    }
+    // check EADDRINUSE
+    map<int, sockaddr_in>::iterator it = server_addr_map.begin();
+    for (; it != server_addr_map.end(); it++) {
+        if (it->second.sin_port == temp.sin_port) {
+            errno = EADDRINUSE;
+            return -1;
+        }
     }
 
-    // else the port is listening... actually
-    // TODO: set up status flag
-    return -1;
+    // check EOPNOTSUPP, ignore this
+
+    // if never listened before
+    listening_sockets[sockfd] = 1;
+    return 0;
+
 }
 
 int rcsAccept(int sockfd, struct sockaddr_in * addr) {

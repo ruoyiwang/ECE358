@@ -69,7 +69,6 @@ int main(int argc, char *argv[]) {
     	if(rcsSend(s, buf, nread) < 0) {
     	    perror("send"); exit(1);
     	}
-
     	sleep(getrand()%7);
     }
 

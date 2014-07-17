@@ -38,8 +38,8 @@ int rcsGetSockName(int sockfd, struct sockaddr_in * addr);
 int rcsListen(int sockfd);
 
 int rcsAccept(int sockfd, struct sockaddr_in * addr);
-int rcsConnect(int sockfd, struct sockaddr_in * addr);
-int rcsSend(int sockfd, void* buf, int len);
+int rcsConnect(int sockfd, const struct sockaddr_in * addr);
+int rcsSend(int sockfd, const void* buf, int len);
 int rcsRecv(int sockfd, void * buf, int len);
 int rcsClose(int sockfd);
 

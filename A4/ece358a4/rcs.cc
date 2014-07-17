@@ -62,7 +62,7 @@ int getCheckSum(char * buf, int len) {
 int rcsSocket() {
     int sockfd = ucpSocket();
     if (sockfd < 0) {
-        // ucp socket should have set flags 
+        // ucp socket should have set flags
         return -1;
     }
 
@@ -115,6 +115,8 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         return -1;
     }
 
+    ucpSetSockRecvTimeout(sockfd, 0);
+
     packet p2;
 
     initPacket(&p2);
@@ -160,7 +162,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         ucpSetSockRecvTimeout(new_socketfd, TIME_OUT);
         while (
             ucpRecvFrom(sockfd, &p2, sizeof(packet), addr) < 0 &&
-            ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0 
+            ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0
         ) {}
 
         cout << "received second pkt" << endl;
@@ -175,7 +177,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
             initPacket(&p2);
             while (
                 ucpRecvFrom(sockfd, &p2, sizeof(packet), addr) < 0 &&
-                ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0 
+                ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0
             ) {}
         }
         if (p2.ack_num == -1) {
@@ -194,7 +196,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     return -1;
 }
 
-int rcsConnect(int sockfd, struct sockaddr_in * addr) {
+int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
     sockaddr_in addr_temp, server_addr;
     if (rcsGetSockName(sockfd, &addr_temp) < 0) {
         cerr << "sock has not been binded yet" << endl;
@@ -261,7 +263,7 @@ int rcsRecv(int sockfd, void * buf, int len) {
     int bad_packet = FALSE;
     int terminated = FALSE;
     int server_sockfd = client_server_sockets[sockfd];
-
+    int ret = 0;
     // test line
     server_sockfd = sockfd;
 
@@ -284,7 +286,7 @@ int rcsRecv(int sockfd, void * buf, int len) {
                 p2.ack_num = TERM_ACK;
                 ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
             }
-            return 0;
+            return ret;
         }
 
         if ((p1.seq_num != expected_seq)
@@ -321,6 +323,7 @@ int rcsRecv(int sockfd, void * buf, int len) {
                 terminated = TRUE;
                 current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
                 memcpy (current_partition, p1.buff, p1.buff_len);
+                ret = expected_seq * BUFFER_SIZE + p1.buff_len;
                 continue;
             }
             // current_partition = current_partition + p1.buff_len;
@@ -336,7 +339,7 @@ int rcsRecv(int sockfd, void * buf, int len) {
     return -1;
 }
 
-int rcsSend(int sockfd, void* buf, int len) {
+int rcsSend(int sockfd, const void* buf, int len) {
     char * current_partition = (char *) buf;
     int i, buff_len, expected_ack = 0;
     int seq_window_start = 0;
@@ -407,6 +410,7 @@ int rcsSend(int sockfd, void* buf, int len) {
 int rcsClose(int sockfd) {
     sockaddr_in addr;
     packet p1;
+    initPacket(&p1);
     lookup_addr_map(sockfd, &addr);
     for (int i = 0; i < 10; i ++) {
         p1.flags = p1.flags | END_BIT_MASK;

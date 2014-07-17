@@ -35,7 +35,7 @@ unsigned int getrand() {
     if(f < 0) {
         perror("open(/dev/urandom)"); return 0;
     }
-    
+
     unsigned int ret;
     read(f, &ret, sizeof(unsigned int));
     close(f);
@@ -49,12 +49,12 @@ int main(int argc, char *argv[]) {
     }
     int s = rcsSocket();
     struct sockaddr_in a;
-    
+
     memset(&a, 0, sizeof(struct sockaddr_in));
     a.sin_family = AF_INET;
     a.sin_port = 0;
     a.sin_addr.s_addr = INADDR_ANY;
-    
+
     if(rcsBind(s, (struct sockaddr_in *)(&a)) < 0) {
         perror("bind"); exit(1);
     }
@@ -63,30 +63,31 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "rcsGetSockName() failed. Exiting...\n");
         exit(0);
     }
-    
+
     unsigned char buf[256];
     int nread = -1;
-    
+
     a.sin_family = AF_INET;
     a.sin_port = htons((uint16_t)(atoi(argv[2])));
     if(inet_aton(argv[1], &(a.sin_addr)) < 0) {
         fprintf(stderr, "inet_aton(%s) failed.\n", argv[1]);
         exit(1);
     }
-    
+
     if(rcsConnect(s, (struct sockaddr_in *)(&a)) < 0) {
         perror("connect"); exit(1);
     }
-    
+
     while((nread = read(STDIN_FILENO, buf, 256)) > 0) {
+        printf("LOL WTF\n");
         if(rcsSend(s, buf, nread) < 0) {
             perror("send"); exit(1);
         }
-        
+
         sleep(getrand()%7);
     }
-    
+
     rcsClose(s);
-    
+
     return 0;
 }

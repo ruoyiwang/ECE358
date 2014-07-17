@@ -23,7 +23,7 @@
 #include <rcs.h>
 #include <fcntl.h>
 
-#if 0
+#if 1
 #define _DEBUG_
 #endif
 
@@ -33,7 +33,7 @@ void *serviceConnection(void *arg) {
 
     char fname[256];
     memset(fname, 0, 256);
-    snprintf(fname, 255, "%lu", pthread_self());
+    snprintf(fname, 255, "testfile%lu", pthread_self());
 
     int wfd = open(fname, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 
@@ -138,6 +138,7 @@ int main(int argc, char *argv[]) {
     	*newasock = asock;
     	int err;
     	pthread_t t;
+        printf(stderr, "WTFFFFFFFFFFFFFFFFFF");
 
     	if(err = pthread_create(&t, NULL, &serviceConnection, (void *)(newasock))) {
     	    fprintf(stderr, "pthread_create(): %s\n", strerror(err));

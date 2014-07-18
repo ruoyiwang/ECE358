@@ -130,17 +130,13 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
     new_sockaddr.sin_port = 0;
     new_sockaddr.sin_addr.s_addr = INADDR_ANY;
     if (rcsBind(new_socketfd, &new_sockaddr) < 0) {
-        // cout << "error binding to new port" <<endl;
+        cerr << "error binding to new port" <<endl;
     }
-    cout << "saving, portnum: " << ntohs(new_sockaddr.sin_port) << endl;
     rcsListen(new_socketfd);
 
     while (true) {
         // receive shits
-        // cout << "waiting to receive first syn" << endl;
         int received_len = ucpRecvFrom(sockfd, &p2, sizeof(packet), addr);
-        cout << received_len << endl;
-        // cout << "received first syn" << endl;
 
         if (!(p2.flags & SYN_BIT_MASK)) {
             // if the syn bit is not set, start over
@@ -153,7 +149,6 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
         p2.seq_num = y;
         // send TCP SYNACK msg, acking SYN with new port
         ucpSendTo(new_socketfd, &p2, sizeof(packet), addr);
-        // cout << "sending first ack" << endl;
 
         // received ACK(y)
         initPacket(&p2);
@@ -165,10 +160,8 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
             ucpRecvFrom(new_socketfd, &p2, sizeof(packet), addr) < 0
         ) {}
 
-        // cout << "received second pkt" << endl;
         while (!(p2.flags & ACK_BIT_MASK) || p2.ack_num != y+1) {
             // if the ack bit is not set or wrong ack num start over
-            // cout << "wrong ack" << y+1 << "|" << p2.ack_num << endl;
             if (p2.ack_num == -1) {
                 // client restarting process
                 initPacket(&p2);
@@ -199,7 +192,7 @@ int rcsAccept(int sockfd, struct sockaddr_in * addr) {
 int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
     sockaddr_in addr_temp, server_addr;
     if (rcsGetSockName(sockfd, &addr_temp) < 0) {
-        // cerr << "sock has not been binded yet" << endl;
+        cerr << "sock has not been binded yet" << endl;
         return -1;
     }
 
@@ -218,12 +211,10 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
         p1.flags = p1.flags | SYN_BIT_MASK;
         while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet I'm sending is too small, we just try again
-        // cout << "sent first packet" <<endl;
 
         // received SYNACK(x)
         initPacket(&p1);
         if (ucpRecvFrom(sockfd, &p1, sizeof(packet), &server_addr) < 0) {
-            // cout << "failed receiving\n" << addr->sin_port;
             continue;
         }
         if (!(p1.flags & ACK_BIT_MASK) || p1.ack_num != x+1) {
@@ -233,7 +224,6 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
             continue;
         }
         map_addr(sockfd, &server_addr);
-        // cout << "received first correct packet from port: " << ntohs(server_addr.sin_port) <<endl;
         // indicates server is live;
 
 
@@ -244,7 +234,6 @@ int rcsConnect(int sockfd, const struct sockaddr_in * addr) {
         p1.ack_num = ack_for_server;
         // while (ucpSendTo(sockfd, &p1, packet_size, addr) < packet_size) {}
         // if the packet is too small, we try again
-        // cout << "sending second packet" <<endl;
         if (ucpSendTo(sockfd, &p1, packet_size, addr) >= packet_size) {
             return true;
         }
@@ -267,11 +256,12 @@ int rcsRecv(int sockfd, void * buf, int len) {
     // test line
     server_sockfd = sockfd;
 
+    //set the time out of hte Recv to block indefinitely
     ucpSetSockRecvTimeout(server_sockfd, 0);
     for (;;) {
         initPacket(&p1);
+        // if the termintating flag is set, then send the terminating ack to sender then return
         if (terminated) {
-            // cout<< "terminating "<<expected_seq<<endl;
             for (int i = 0; i < 10; i ++) {
                 p2.flags = p2.flags | END_BIT_MASK;
                 p2.ack_num = TERM_ACK;
@@ -279,8 +269,11 @@ int rcsRecv(int sockfd, void * buf, int len) {
             }
             return ret;
         }
+
+        // receive from sender
         ucpRecvFrom(server_sockfd, &p1, sizeof(packet), &client_addr);
 
+        // check close is called by the sender if so return -1
         if (p1.ack_num == CLOSE_ACK && p1.flags & END_BIT_MASK) {
             ucpSetSockRecvTimeout(server_sockfd, 1);
             for (int j = 0; j < 12; j ++) {
@@ -289,15 +282,14 @@ int rcsRecv(int sockfd, void * buf, int len) {
             return -1;
         }
 
-
+        // the packet is bad if the sequence number is not expected, and the checksum is wrong
         if ((p1.seq_num != expected_seq)
             || (getCheckSum(p1.buff, p1.buff_len) != p1.checksum)) {
             bad_packet = 1;
         }
-        // cout<< "received seq#"<< p1.seq_num<<" expecting "<<expected_seq<<endl;
 
+        // if a bad packet is recieved than send back a duplicate ack
         if (bad_packet){
-            // cout<< "bad_packet"<< expected_seq<<endl;
             initPacket(&p2);
             p2.ack_num = p1.seq_num;
             if (p1.seq_num == expected_seq){
@@ -307,34 +299,37 @@ int rcsRecv(int sockfd, void * buf, int len) {
             p1.flags = p1.flags | ACK_BIT_MASK;
             ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
         }
+        // if a good ack is received
         else {
             if (expected_seq == 0){
                 ucpSetSockRecvTimeout(server_sockfd, TIME_OUT);
             }
-            // cout<< "good_packet"<< expected_seq<<endl;
             initPacket(&p2);
             p2.ack_num = expected_seq;
             p2.buff_len = 0;
             p1.flags = p1.flags | ACK_BIT_MASK;
-            //proccess
 
+            // calculate the return value aka number of bytes processed
+            ret = expected_seq * BUFFER_SIZE + p1.buff_len;
+            if (ret > len) {
+                ret = len;
+            }
 
-            if (p1.flags & END_BIT_MASK) {
+            // if the send has finised sending or if the receive len run out
+            if (p1.flags & END_BIT_MASK || ret == len) {
+                // set the termintating flag
                 p2.ack_num = TERM_ACK;
                 p2.flags = p2.flags | END_BIT_MASK;
                 ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
                 terminated = TRUE;
                 current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
-                memcpy (current_partition, p1.buff, p1.buff_len);
-                ret = expected_seq * BUFFER_SIZE + p1.buff_len;
+                memcpy (current_partition, p1.buff, ret - expected_seq * BUFFER_SIZE);
                 continue;
             }
-            // current_partition = current_partition + p1.buff_len;
+            // add the recieved message to the buffer, then send back an corresponding ack
             current_partition = (char *)buf + expected_seq * BUFFER_SIZE;
-            // cout<< "inserting chunk "<< current_partition - (char*)buf<<endl;
             memcpy (current_partition, p1.buff, p1.buff_len);
             expected_seq = expected_seq + 1;
-            // cout<< "Sending ack#"<< p2.ack_num<<endl;
             ucpSendTo(server_sockfd, &p2, sizeof(packet), &client_addr);
         }
         bad_packet = 0;
@@ -348,64 +343,66 @@ int rcsSend(int sockfd, const void* buf, int len) {
     int i, buff_len, expected_ack = 0;
     int seq_window_start = 0;
     packet p1, p2;
+    // set the timout for receive of ack
     ucpSetSockRecvTimeout(sockfd, TIME_OUT);
 
     sockaddr_in server_addr;
     lookup_addr_map(sockfd, &server_addr);
     int k;
-    // int final_ack = -2300;
 
-    // cout<< "Sending "<<endl;
     for(;;) {
         k = 0;
+        // send the window size amount of packets
         for (i = 0; i < WINDOW_SIZE; i ++) {
             initPacket(&p1);
             buff_len = BUFFER_SIZE;
+            // get the current packet location in the buffer
             current_partition = (char *)buf + (seq_window_start + i) * BUFFER_SIZE;
-
+            // if this is the last packet then add the end flag
             if ( (current_partition + BUFFER_SIZE - (char *)buf) >= len ) {
-                // cout<< "Sending remaining"<<((char*)buf + len - current_partition)<<endl;
                 buff_len = ((char*)buf + len - current_partition);
                 p1.flags = p1.flags | END_BIT_MASK;
-                // final_ack = (seq_window_start + i) % SYN_NUM_MAX;
-                // cout<< "terminating"<<endl;
             }
-
+            // set the proper sequence number
             p1.seq_num = (seq_window_start + i) % SYN_NUM_MAX;
             p1.ack_num = ack_for_server;
+            // copy over the buffer to the packet
             memcpy(p1.buff, current_partition, buff_len);
             p1.checksum = getCheckSum(p1.buff, buff_len);
             p1.buff_len = buff_len;
             p1.flags = p1.flags | ACK_BIT_MASK;
             p1.flags = p1.flags | SYN_BIT_MASK;
-
-            // cout<< "Sending Seq#"<< p1.seq_num<<endl;
+            // send
             ucpSendTo(sockfd, &p1, sizeof(packet), &server_addr);
             k++;
             if (p1.flags & END_BIT_MASK) {
                 break;
             }
         }
+        // recieve the acks
         for (i = 0; i < WINDOW_SIZE; i ++) {
             initPacket(&p2);
+            // receive
             ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
-            // cout<< "received ack#"<< p2.ack_num<<" expecting "<<expected_ack<<endl;
+            // if close than return -1
             if (p2.ack_num == CLOSE_ACK && p2.flags & END_BIT_MASK) {
                 for (int j = 0; j < 12; j ++) {
                     ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
                 }
                 return -1;
             }
-
+            // if terminating ack is received then return
             if (p2.ack_num == TERM_ACK && p2.flags & END_BIT_MASK) {
                 for (int j = 0; j < 12; j ++) {
                     ucpRecvFrom(sockfd, &p2, sizeof(packet), &server_addr);
                 }
                 return 0;
             }
+            // if the ack is wrong the skip
             if (p2.ack_num != expected_ack) {
                 continue;
             }
+            // if the ack is right increase the expected ack as well as the window
             expected_ack = (expected_ack + 1) % SYN_NUM_MAX;
             seq_window_start = (seq_window_start + 1) % SYN_NUM_MAX;
         }
@@ -418,6 +415,7 @@ int rcsClose(int sockfd) {
     packet p1;
     initPacket(&p1);
     lookup_addr_map(sockfd, &addr);
+    // send 10 closing acks
     for (int i = 0; i < 10; i ++) {
         p1.flags = p1.flags | END_BIT_MASK;
         p1.ack_num = CLOSE_ACK;

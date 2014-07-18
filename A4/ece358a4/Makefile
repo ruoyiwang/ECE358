@@ -1,9 +1,11 @@
 CFLAGS = -c -fPIC -Wall -I.
+RUNCFLAGS = -fPIC -Wall -I. -L.
 
-# ucp.o:
-# 	g++ $(CFLAGS) -o ucp.o 
+all: rcsapp
 
-all: librcs.a test.o mybind.o
+rcsapp: mybind.c rcsapp-client.c rcsapp-server.c librcs.a
+	g++ $(RUNCFLAGS) -o rcsapp-client rcsapp-client.c -lrcs
+	g++ $(RUNCFLAGS) -pthread -o rcsapp-server rcsapp-server.c -lrcs
 
 mybind.o: mybind.c
 	gcc $(CFLAGS) -o $@ mybind.c
@@ -17,8 +19,5 @@ rcs.o: rcs.cc rcs.h ucp.o
 librcs.a: rcs.o ucp.o mybind.o
 	ar rcs -o $@ rcs.o ucp.o mybind.o
 
-test.o: test.cc rcs.h
-	g++ -fPIC -Wall -I. -L. -o $@ test.cc -lrcs
-
 clean:
-	rm -f *.o *.a *.s
+	rm -f *.o *.a *.s rcsapp-server rcsapp-client

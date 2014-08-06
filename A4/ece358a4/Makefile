@@ -17,7 +17,7 @@ rcs.o: rcs.cc rcs.h ucp.o
 	g++ $(CFLAGS) -o $@ rcs.cc
 
 librcs.a: rcs.o ucp.o mybind.o
-	ar rcs -o $@ rcs.o ucp.o mybind.o
+	ar rcs $@ rcs.o ucp.o mybind.o
 
 clean:
 	rm -f *.o *.a *.s rcsapp-server rcsapp-client
